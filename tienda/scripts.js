@@ -22,13 +22,13 @@ document.addEventListener("click", (e) => {
 
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDjMHUZNLuyANjNgZRDdEYI2vhWw0QJrck",
-  authDomain: "veni-guapa-a6d74.firebaseapp.com",
-  projectId: "veni-guapa-a6d74",
-  storageBucket: "veni-guapa-a6d74.firebasestorage.app",
-  messagingSenderId: "163522581569",
-  appId: "1:163522581569:web:10d92da46d2b17614162c0",
-  measurementId: "G-6PMCYPVTWQ"
+  apiKey: "AIzaSyBiFeeGRSwBdW1ok4ttA_QvZj7eFZUf9Ls",
+  authDomain: "galeria-demo-d6eca.firebaseapp.com",
+  projectId: "galeria-demo-d6eca",
+  storageBucket: "galeria-demo-d6eca.firebasestorage.app",
+  messagingSenderId: "416425403132",
+  appId: "1:416425403132:web:813b69dd194a56ee412d79",
+  measurementId: "G-KFLXLQJEEN"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -170,7 +170,7 @@ async function obtenerCategorias() {
     } catch (error) {
         console.error("No se pudieron cargar categorías dinámicas", error);
     }
-    return DEFAULT_CATEGORIES;
+    return [];
 }
 
 async function inicializarCategorias() {
