@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Administración - Vení Guapa</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+    <script>
+        // Verificar si el usuario está autorizado, si no, redirigir al login
+        if (sessionStorage.getItem("autorizado") !== "true") {
+        window.location.href = "login.html";
+        }
+    </script>
+
+    <h1>Panel de Administración</h1>
+
+    <form id="formProducto">
+    <p class="form-ayuda">
+        Seleccioná varias fotos, completá el nombre, precio y categoría para cada una y subilas juntas.
+    </p>
+
+    <label for="categoria">Categoría sugerida:</label>
+    <select id="categoria" required>
+        <option value="" disabled selected>Seleccionar categoría</option>
+    </select>
+    <small class="form-ayuda__hint">Usamos esta categoría como valor inicial de cada imagen; podés cambiarla luego en la lista.</small>
+
+    <label>Imágenes:</label>
+    <input type="file" id="imagen" accept="image/*" multiple required>
+    
+    <div id="batchList" class="batch-list">
+        <p class="batch-placeholder">Seleccioná una o más imágenes para comenzar.</p>
+    </div>
+
+    <button type="submit">Cargar productos</button>
+    </form>
+
+    <section class="panel-categorias">
+        <h2>Gestión de categorías</h2>
+        <div class="panel-categorias__grid">
+            <form id="formCategoria" class="form-categoria">
+                <div class="form-categoria__row">
+                    <input type="text" id="nuevaCategoria" placeholder="Escribí la nueva categoría" required />
+                    <button type="submit">Agregar</button>
+                </div>
+            </form>
+
+            <div class="lista-categorias">
+                <ul id="listaCategorias"></ul>
+            </div>
+        </div>
+    </section>
+
+    <div class="filtro filtro--below">
+        <label for="filtroCategoria">Filtrar por categoría:</label>
+        <select id="filtroCategoria">
+            <option value="todas">Todas</option>
+        </select>
+    </div>
+
+    <section class="acciones-masivas" aria-live="polite">
+        <div class="acciones-masivas__status">
+            <p id="seleccionContador">0 productos seleccionados</p>
+        </div>
+        <div class="acciones-masivas__botones">
+            <button type="button" id="btnSeleccionarTodo" class="btn-secundario">Seleccionar todo</button>
+            <button type="button" id="btnLimpiarSeleccion" class="btn-terciario">Limpiar selección</button>
+            <button type="button" id="btnEliminarSeleccion" class="btn-peligro" disabled>Eliminar seleccionados</button>
+        </div>
+    </section>
+
+    <div class="productos" id="listaProductos"></div>
+
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+    <div id="confirm-modal" class="confirm-modal" aria-hidden="true">
+        <div class="confirm-dialog">
+            <p id="confirm-message"></p>
+            <div class="confirm-actions">
+                <button type="button" class="btn-secondary" data-confirm="cancel">Cancelar</button>
+                <button type="button" class="btn-primary" data-confirm="accept">Continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="admin.js"></script>
+</body>
+</html>
