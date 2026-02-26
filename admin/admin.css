@@ -6,15 +6,16 @@
 
 body {
     font-family: 'Outfit', sans-serif;
-    background-color: #fdf6f2;
+    background-color: #f5f7fb;
     margin: 0;
     padding: 2rem;
     overflow-x: hidden;
+    color: #1f2933;
 }
 
 h1 {
     text-align: center;
-    color: #6b3e2e;
+    color: #1f2933;
 }
 
 form {
@@ -31,20 +32,24 @@ input, select, button {
     width: 100%;
     padding: 0.6rem;
     margin-top: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    border: 1px solid #d3dae6;
+    border-radius: 6px;
+    font-family: inherit;
 }
 
 button {
-    background-color: #6b3e2e;
+    background-color: #2563eb;
     color: white;
-    font-weight: bold;
+    font-weight: 600;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: background 0.3s, box-shadow 0.3s;
+    border: none;
+    border-radius: 6px;
 }
 
 button:hover {
-    background-color: #4a2d21;
+    background-color: #1d4ed8;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
 }
 
 .btn-secundario,
@@ -55,31 +60,31 @@ button:hover {
 }
 
 .btn-secundario {
-    background-color: #8b5e3c;
+    background-color: #0ea5e9;
 }
 
 .btn-terciario {
     background-color: transparent;
-    color: #6b3e2e;
-    border: 1px solid #c59f86;
+    color: #1f2933;
+    border: 1px solid #9ca3af;
 }
 
 .btn-terciario:hover {
-    background-color: rgba(107, 62, 46, 0.08);
+    background-color: rgba(15, 23, 42, 0.05);
 }
 
 .btn-peligro {
-    background-color: #c94c4c;
+    background-color: #f97316;
 }
 
 .btn-peligro:disabled {
-    background-color: #f0b6b6;
+    background-color: #fcd9c2;
     cursor: not-allowed;
 }
 
 .form-ayuda {
     margin-bottom: 0.6rem;
-    color: #6b3e2e;
+    color: #475569;
     font-weight: 500;
 }
 
@@ -87,16 +92,16 @@ button:hover {
     display: block;
     margin-top: 0.2rem;
     margin-bottom: 1rem;
-    color: #8b5e3c;
+    color: #64748b;
     font-size: 0.9rem;
 }
 
 .batch-list {
     margin-top: 1rem;
-    border: 1px solid #f0dacd;
+    border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 1rem;
-    background: #fffaf7;
+    background: #ffffff;
     max-height: 400px;
     overflow-y: auto;
     display: flex;
@@ -106,7 +111,7 @@ button:hover {
 
 .batch-placeholder {
     margin: 0;
-    color: #a46b4b;
+    color: #94a3b8;
     text-align: center;
 }
 
@@ -169,6 +174,12 @@ button:hover {
     margin-bottom: 1rem;
 }
 
+.producto-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
 .producto-info {
     display: flex;
     flex-direction: column;
@@ -176,7 +187,7 @@ button:hover {
 }
 
 .producto-meta {
-    color: #6b3e2e;
+    color: #475569;
     font-size: 0.9rem;
 }
 
@@ -191,11 +202,25 @@ button:hover {
     width: 18px;
     height: 18px;
     margin: 0;
-    accent-color: #8b5e3c;
+    accent-color: #2563eb;
+}
+
+button.editar {
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+button.editar:hover {
+    background-color: #1d4ed8;
 }
 
 button.eliminar {
-    background-color: #c94c4c;
+    background-color: #f97316;
     color: white;
     border: none;
     padding: 0.4rem 0.8rem;
@@ -205,7 +230,54 @@ button.eliminar {
 }
 
 button.eliminar:hover {
-    background-color: #a83939;
+    background-color: #ea580c;
+}
+
+/* Modal de edición */
+.edit-modal-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.edit-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #475569;
+}
+
+.edit-input {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid #d3dae6;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.edit-input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.btn-save {
+    width: auto;
+    min-width: 120px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.6rem 1.2rem;
+    transition: background 0.2s;
+}
+
+.btn-save:hover {
+    background: #1d4ed8;
 }
 
 .categoria-admin {

@@ -1,28 +1,23 @@
 export const siteContent = {
-
-  storeName: "Tienda Demo",
-
-  slogan: "Artículos de calidad, atención personalizada",
-
+  storeName: "Galería Demo",
+  slogan: "Mostrá tus productos, conecta con tus clientes",
   introDescription:
-    "vendemos artculos variados de excelente calidad. Nuestro compromiso es ofrecer productos que se adapten a tus necesidades y estilo de vida, brindándote una experiencia de compra única y satisfactoria.",
-  
-    aboutText:
-    "Somos una tienda de ropa pensada para mujeres con personalidad. En Vení Guapa combinamos estilo, tendencia y cercanía.",
-  
-    contact: {
-      
+    "Esta demo muestra cómo presentar un catálogo online elegante, con carruseles animados y contactos directos. Ideal para boutiques, emprendimientos creativos y cualquier negocio que quiera compartir su stock sin complicaciones.",
+  aboutText:
+    "Galería Demo es un escaparate digital listo para adaptar a cualquier emprendimiento. Ofrece una experiencia visual clara, rápida de implementar y pensada para fortalecer la presencia online de tiendas independientes.",
+  contact: {
     whatsapp: {
-      international: "598 98 999 999",
-      display: "099 999 999",
-      heroMessage: "Hola Veni Guapa! Quiero pedir info sobre las prendas.",
-      contactMessage: "Hola Veni Guapa! Vi una prenda en la galería y quiero encargarla."
+      international: "59898238313",
+      display: "098 238 313",
+      heroMessage: "Hola! Vi la demo de la galería y quiero más información.",
+      contactMessage: "Hola! Me interesó un producto de la galería demo y quiero saber más."
     },
-
     instagram: {
-      handle: "@tiendaveniguapa20",
-      url: "https://www.instagram.com/tiendaveniguapa20",
-      heroCta: "Hablar por Instagram"
-    }
-  }
+      handle: "@galeria.demo",
+      url: "https://www.instagram.com/",
+      heroCta: "Ver Instagram"
+    },
+    email: "contacto@gmail.com"
+  },
+  footerNote: "© 2026 Galería Demo — Catálogo online para tu tienda"
 };

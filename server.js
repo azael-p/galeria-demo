@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import multer from "multer";
+import sharp from "sharp";
 import admin from "firebase-admin";
 import { readFileSync } from "fs";
 import path from "path";
@@ -12,7 +13,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const NODE_ENV = process.env.NODE_ENV || 'development';
 console.log('NODE_ENV =', NODE_ENV);
-const isProd = NODE_ENV === 'production';
 
 // ✅ Inicializar Firebase Admin con tu clave privada
 // Lee credenciales desde ENV en producción, o desde archivo en local
@@ -96,8 +96,6 @@ async function deleteProductDocument(docRef, snapshot) {
   return data;
 }
 
-const DEFAULT_CATEGORIES = ["remeras", "blazers", "pantalones", "vestidos", "accesorios"];
-
 const app = express();
 const ADMIN_KEY = process.env.ADMIN_KEY || "CAMBIA-ESTA-CLAVE";
 // 🔒 CORS restringido a orígenes permitidos
@@ -121,7 +119,7 @@ app.use(
       if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
       return cb(new Error("CORS: origin no permitido"), false);
     },
-    methods: ["GET", "POST", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "x-admin-key"],
     credentials: true,
   })
@@ -136,7 +134,10 @@ app.use(express.static(path.join(__dirname, "tienda")));
 app.use("/admin", express.static(path.join(__dirname, "admin")));
 
 // Configuración de Multer (para recibir imágenes)
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB máximo por archivo
+});
 
 // 🚧 Guardia adicional por Origin/Referer para todas las rutas /api
 app.use("/api", (req, res, next) => {
@@ -158,7 +159,7 @@ app.use("/api", (req, res, next) => {
 
   if (!permitido) return res.status(403).json({ error: "Origen no permitido" });
   // 🔐 Requiere clave para operaciones que modifican el estado
-  if (req.method === "POST" || req.method === "DELETE") {
+  if (req.method === "POST" || req.method === "DELETE" || req.method === "PATCH") {
     const key = req.header("x-admin-key") || "";
     if (key !== ADMIN_KEY) {
       return res.status(401).json({ error: "No autorizado" });
@@ -168,7 +169,7 @@ app.use("/api", (req, res, next) => {
 });
 
 // Health check rápido (no toca Firebase)
-app.get("/healthz", (req, res) => {
+app.get("/healthz", (_req, res) => {
   res.status(200).json({
     ok: true,
     env: NODE_ENV,
@@ -177,7 +178,7 @@ app.get("/healthz", (req, res) => {
 });
 
 // Health check "profundo" (verifica Firestore y Storage)
-app.get("/healthz/deep", async (req, res) => {
+app.get("/healthz/deep", async (_req, res) => {
   try {
     // Lectura mínima de Firestore
     await db.collection("productos").limit(1).get();
@@ -202,36 +203,60 @@ app.post("/api/productos", upload.single("imagen"), async (req, res) => {
       return res.status(400).json({ error: "Nombre, precio y categoría son obligatorios." });
     }
 
+    // Verificar que la categoría exista en Firestore
+    const catSnap = await db.collection("categorias").where("nombre", "==", categoria).limit(1).get();
+    if (catSnap.empty) {
+      return res.status(400).json({ error: `La categoría "${categoria}" no existe.` });
+    }
+
     if (!file) return res.status(400).json({ error: "No se subió ninguna imagen" });
 
     if (!file.mimetype.startsWith("image/")) {
       return res.status(400).json({ error: "Solo se permiten archivos de imagen" });
     }
 
+    // Optimizar imagen: convertir a WebP y redimensionar a máx. 1200px
+    let processedBuffer;
+    try {
+      processedBuffer = await sharp(file.buffer)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toBuffer();
+    } catch (err) {
+      console.error("❌ Error al procesar la imagen con sharp:", err);
+      return res.status(500).json({ error: "No se pudo procesar la imagen" });
+    }
+
     // Generar un nombre único para evitar sobrescribir imágenes repetidas
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const extension = file.originalname.split('.').pop();
     const baseName = file.originalname.replace(/\.[^/.]+$/, "");
-    const filename = `${baseName}-${uniqueSuffix}.${extension}`;
+    const filename = `${baseName}-${uniqueSuffix}.webp`;
     const blob = bucket.file(`productos/${filename}`);
-    const blobStream = blob.createWriteStream({ metadata: { contentType: file.mimetype } });
+    const blobStream = blob.createWriteStream({ metadata: { contentType: "image/webp" } });
 
     blobStream.on("error", (err) => res.status(500).json({ error: err.message }));
 
     blobStream.on("finish", async () => {
-      const [url] = await blob.getSignedUrl({ action: "read", expires: "03-01-2030" });
+      try {
+        await blob.makePublic();
+        const encodedPath = blob.name.split('/').map(encodeURIComponent).join('/');
+        const url = `https://storage.googleapis.com/${bucket.name}/${encodedPath}`;
 
-      // Guardar datos del producto en Firestore y obtener su ID
-      const docRef = await db.collection("productos").add({ nombre, precio, categoria, imagen: url });
+        // Guardar datos del producto en Firestore y obtener su ID
+        const docRef = await db.collection("productos").add({ nombre, precio, categoria, imagen: url });
 
-      // Actualizar el documento con su propio ID
-      await docRef.update({ id: docRef.id });
+        // Actualizar el documento con su propio ID
+        await docRef.update({ id: docRef.id });
 
-      // Devolver también el ID del documento recién creado
-      res.json({ mensaje: "✅ Producto subido con éxito", id: docRef.id, imagen: url });
+        // Devolver también el ID del documento recién creado
+        res.json({ mensaje: "✅ Producto subido con éxito", id: docRef.id, imagen: url });
+      } catch (err) {
+        console.error("❌ Error al finalizar la subida:", err);
+        res.status(500).json({ error: "Error al procesar la imagen subida" });
+      }
     });
 
-    blobStream.end(file.buffer);
+    blobStream.end(processedBuffer);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Error al subir producto" });
@@ -336,8 +361,37 @@ app.delete("/api/categorias/:id", async (req, res) => {
   }
 });
 
+// ✏️ Editar nombre y/o precio de un producto
+app.patch("/api/productos/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const nombre = String(req.body?.nombre ?? "").trim();
+    const precio = String(req.body?.precio ?? "").trim();
+
+    if (!nombre && !precio) {
+      return res.status(400).json({ error: "Se requiere nombre o precio para actualizar." });
+    }
+
+    const docRef = db.collection("productos").doc(id);
+    const snap = await docRef.get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: "Producto no encontrado" });
+    }
+
+    const updates = {};
+    if (nombre) updates.nombre = nombre;
+    if (precio) updates.precio = precio;
+
+    await docRef.update(updates);
+    res.json({ mensaje: "Producto actualizado correctamente" });
+  } catch (error) {
+    console.error("❌ Error al actualizar producto:", error);
+    res.status(500).json({ error: "Error al actualizar el producto", detalle: error.message });
+  }
+});
+
 // 📦 Obtener todos los productos
-app.get("/api/productos", async (req, res) => {
+app.get("/api/productos", async (_req, res) => {
   try {
     const snapshot = await db.collection("productos").get();
     const productos = snapshot.docs.map(doc => ({
