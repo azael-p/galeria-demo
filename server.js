@@ -283,8 +283,9 @@ app.delete("/api/productos/:id", async (req, res) => {
 // 📂 Categorías
 app.get("/api/categorias", async (_req, res) => {
   try {
-    const snapshot = await db.collection("categorias").orderBy("nombre").get();
+    const snapshot = await db.collection("categorias").get();
     const categorias = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    categorias.sort((a, b) => (a.orden ?? 9999) - (b.orden ?? 9999) || a.nombre.localeCompare(b.nombre));
     res.json(categorias);
   } catch (error) {
     console.error("Error listando categorías:", error);
@@ -302,11 +303,34 @@ app.post("/api/categorias", async (req, res) => {
       return res.status(409).json({ error: "La categoría ya existe" });
     }
 
-    const docRef = await db.collection("categorias").add({ nombre });
-    res.status(201).json({ id: docRef.id, nombre });
+    const allCats = await db.collection("categorias").get();
+    const maxOrden = allCats.docs.reduce((max, d) => Math.max(max, d.data().orden ?? 0), 0);
+
+    const docRef = await db.collection("categorias").add({ nombre, orden: maxOrden + 1 });
+    res.status(201).json({ id: docRef.id, nombre, orden: maxOrden + 1 });
   } catch (error) {
     console.error("Error creando categoría:", error);
     res.status(500).json({ error: "Error al crear la categoría" });
+  }
+});
+
+app.patch("/api/categorias/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const orden = req.body?.orden;
+    if (typeof orden !== "number") {
+      return res.status(400).json({ error: "Se requiere el campo 'orden' (número)." });
+    }
+    const ref = db.collection("categorias").doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: "Categoría no encontrada" });
+    }
+    await ref.update({ orden });
+    res.json({ mensaje: "Orden actualizado" });
+  } catch (error) {
+    console.error("❌ Error actualizando orden de categoría:", error);
+    res.status(500).json({ error: "Error al actualizar el orden" });
   }
 });
 
@@ -361,15 +385,16 @@ app.delete("/api/categorias/:id", async (req, res) => {
   }
 });
 
-// ✏️ Editar nombre y/o precio de un producto
+// ✏️ Editar nombre, precio y/o categoría de un producto
 app.patch("/api/productos/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const nombre = String(req.body?.nombre ?? "").trim();
     const precio = String(req.body?.precio ?? "").trim();
+    const categoria = String(req.body?.categoria ?? "").trim().toLowerCase();
 
-    if (!nombre && !precio) {
-      return res.status(400).json({ error: "Se requiere nombre o precio para actualizar." });
+    if (!nombre && !precio && !categoria) {
+      return res.status(400).json({ error: "Se requiere nombre, precio o categoría para actualizar." });
     }
 
     const docRef = db.collection("productos").doc(id);
@@ -381,6 +406,13 @@ app.patch("/api/productos/:id", async (req, res) => {
     const updates = {};
     if (nombre) updates.nombre = nombre;
     if (precio) updates.precio = precio;
+    if (categoria) {
+      const catSnap = await db.collection("categorias").where("nombre", "==", categoria).limit(1).get();
+      if (catSnap.empty) {
+        return res.status(400).json({ error: `La categoría "${categoria}" no existe.` });
+      }
+      updates.categoria = categoria;
+    }
 
     await docRef.update(updates);
     res.json({ mensaje: "Producto actualizado correctamente" });

@@ -280,6 +280,41 @@ button.eliminar:hover {
     background: #1d4ed8;
 }
 
+/* Reordenamiento de categorías */
+.cat-acciones {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.cat-acciones button {
+    margin-top: 0;
+}
+
+.btn-reordenar-cat {
+    width: auto;
+    padding: 0.3rem 0.6rem;
+    background-color: #eff6ff !important;
+    color: #2563eb;
+    border: 1px solid #93c5fd !important;
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+    margin: 0;
+    transition: background 0.2s;
+}
+
+.btn-reordenar-cat:hover {
+    background-color: #dbeafe !important;
+}
+
+.btn-reordenar-cat:disabled {
+    opacity: 0.35;
+    cursor: default;
+    pointer-events: none;
+}
+
 .categoria-admin {
     margin-top: 2rem;
 }
@@ -426,7 +461,7 @@ button.eliminar:hover {
     padding: 0.3rem 0.8rem;
     background-color: #c94c4c !important;
     border: none;
-    margin-left: 0.8rem;
+    margin: 0 0 0 0.3rem;
 }
 
 .toast-root {
