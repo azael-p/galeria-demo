@@ -5,6 +5,8 @@ export const siteContent = {
     "Esta demo muestra cómo presentar un catálogo online elegante, con carruseles animados y contactos directos. Ideal para boutiques, emprendimientos creativos y cualquier negocio que quiera compartir su stock sin complicaciones.",
   aboutText:
     "Galería Demo es un escaparate digital listo para adaptar a cualquier emprendimiento. Ofrece una experiencia visual clara, rápida de implementar y pensada para fortalecer la presencia online de tiendas independientes.",
+  contactDescription:
+    "Atendemos pedidos de manera personalizada para asegurarnos de que cada prenda llegue perfecta. En tu mensaje contanos qué categoría y nombre viste en la galería así agilizamos todo.",
   contact: {
     whatsapp: {
       international: "59898238313",
