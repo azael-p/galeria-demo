@@ -102,13 +102,13 @@ const ADMIN_KEY = process.env.ADMIN_KEY || "CAMBIA-ESTA-CLAVE";
 const ALLOWED_ORIGINS = new Set([
   "http://localhost:3000",
   "http://127.0.0.1:3000",
-  "https://tienda-veni-guapa.onrender.com",
+  "https://tienda-galeria-demo.onrender.com",
 ]);
 
 const ALLOWED_HOSTS = new Set([
   "localhost:3000",
   "127.0.0.1:3000",
-  "tienda-veni-guapa.onrender.com",
+  "tienda-galeria-demo.onrender.com",
 ]);
 
 app.use(
