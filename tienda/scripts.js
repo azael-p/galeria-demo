@@ -203,6 +203,21 @@ function applyStaticContent() {
         footerEmail.href = `mailto:${email}`;
         footerEmail.textContent = email;
     }
+
+    // Título de la pestaña
+    if (siteContent?.storeName) {
+        document.title = siteContent.storeName;
+    }
+
+    // Badge SaaS
+    const saasBadge = document.getElementById("saasBadge");
+    const saasBadgeLink = document.getElementById("saasBadgeLink");
+    if (saasBadge && saasBadgeLink && siteContent?.saasWhatsapp) {
+        const msg = encodeURIComponent(siteContent.saasMessage || "Hola! Me interesa la galería para mi negocio.");
+        saasBadgeLink.href = `https://wa.me/${siteContent.saasWhatsapp}?text=${msg}`;
+        saasBadge.hidden = false;
+        setTimeout(() => saasBadge.classList.add("visible"), 1500);
+    }
 }
 
 function renderCategoriasDom(listaCategorias) {
