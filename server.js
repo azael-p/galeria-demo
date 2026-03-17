@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import multer from "multer";
 import sharp from "sharp";
 import admin from "firebase-admin";
@@ -126,6 +127,34 @@ app.use(
 );
 app.use(express.json());
 
+// 🛡️ Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas solicitudes, intentá de nuevo más tarde." },
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas subidas, intentá de nuevo más tarde." },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiados intentos de autenticación." },
+});
+
+app.use("/api", apiLimiter);
+app.use("/api/productos", uploadLimiter);
+app.use("/api/auth", authLimiter);
 
 // Carpeta pública principal (tienda)
 app.use(express.static(path.join(__dirname, "tienda")));
@@ -243,7 +272,11 @@ app.post("/api/productos", upload.single("imagen"), async (req, res) => {
     const blob = bucket.file(`productos/${filename}`);
     const blobStream = blob.createWriteStream({ metadata: { contentType: "image/webp" } });
 
-    blobStream.on("error", (err) => res.status(500).json({ error: err.message }));
+    blobStream.on("error", (err) => {
+      if (!res.headersSent) {
+        res.status(500).json({ error: err.message });
+      }
+    });
 
     blobStream.on("finish", async () => {
       try {
@@ -258,10 +291,14 @@ app.post("/api/productos", upload.single("imagen"), async (req, res) => {
         await docRef.update({ id: docRef.id });
 
         // Devolver también el ID del documento recién creado
-        res.json({ mensaje: "✅ Producto subido con éxito", id: docRef.id, imagen: url });
+        if (!res.headersSent) {
+          res.json({ mensaje: "✅ Producto subido con éxito", id: docRef.id, imagen: url });
+        }
       } catch (err) {
         console.error("❌ Error al finalizar la subida:", err);
-        res.status(500).json({ error: "Error al procesar la imagen subida" });
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Error al procesar la imagen subida" });
+        }
       }
     });
 
@@ -431,15 +468,38 @@ app.patch("/api/productos/:id", async (req, res) => {
   }
 });
 
-// 📦 Obtener todos los productos
-app.get("/api/productos", async (_req, res) => {
+// 📦 Obtener productos (paginado)
+// Query params: ?limit=N&startAfter=DOC_ID&categoria=NOMBRE
+app.get("/api/productos", async (req, res) => {
   try {
-    const snapshot = await db.collection("productos").get();
+    const pageSize = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+    const categoriaFiltro = (req.query.categoria || "").trim().toLowerCase();
+    const startAfterId = (req.query.startAfter || "").trim();
+
+    let q = db.collection("productos");
+    if (categoriaFiltro) {
+      q = q.where("categoria", "==", categoriaFiltro);
+    }
+    q = q.orderBy("__name__").limit(pageSize);
+
+    if (startAfterId) {
+      const cursorSnap = await db.collection("productos").doc(startAfterId).get();
+      if (cursorSnap.exists) {
+        q = q.startAfter(cursorSnap);
+      }
+    }
+
+    const snapshot = await q.get();
     const productos = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
-    res.json(productos);
+
+    const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    res.json({
+      productos,
+      nextCursor: snapshot.size >= pageSize ? (lastDoc?.id || null) : null,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error al obtener productos" });

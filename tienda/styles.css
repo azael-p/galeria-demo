@@ -1,3 +1,7 @@
+html {
+  scroll-behavior: smooth;
+}
+
 /* Variables */
 :root {
   --color-principal: #5B4BFF; /* Vibrant Indigo */

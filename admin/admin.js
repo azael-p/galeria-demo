@@ -393,9 +393,9 @@ function cargarProductos(filtro = filtroActual) {
 
             const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-            const productosFiltrados = (filtro === "todas" || !filtro)
+            const productosFiltrados = (filtroActual === "todas" || !filtroActual)
                 ? data
-                : data.filter(p => p.categoria === filtro);
+                : data.filter(p => p.categoria === filtroActual);
 
             const productosPorCategoria = {};
             productosFiltrados.forEach((producto) => {

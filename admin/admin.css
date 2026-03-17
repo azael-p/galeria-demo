@@ -194,8 +194,9 @@ button:hover {
 .producto-item img {
     width: 60px;
     height: 60px;
-    object-fit: cover;
+    object-fit: contain;
     border-radius: 5px;
+    background: #f1f5f9;
 }
 
 .producto-select {
