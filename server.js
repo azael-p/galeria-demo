@@ -1,19 +1,29 @@
+// =============================================
+// server.js — Backend principal de Galería Demo
+// Servidor Express que sirve la tienda, el panel
+// admin y expone la API REST para productos y
+// categorías. Usa Firebase (Firestore + Storage).
+// =============================================
+
 import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import multer from "multer";
-import sharp from "sharp";
+import multer from "multer";               // Manejo de uploads multipart/form-data
+import sharp from "sharp";                 // Procesamiento y optimización de imágenes
 import admin from "firebase-admin";
 import { readFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-dotenv.config();
+dotenv.config(); // Carga variables de entorno desde .env
 
+// __dirname no existe en ESM, hay que derivarlo manualmente
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const NODE_ENV = process.env.NODE_ENV || 'development';
 console.log('NODE_ENV =', NODE_ENV);
+
+// ----- Inicialización de Firebase Admin SDK -----
 
 // ✅ Inicializar Firebase Admin con tu clave privada
 // Lee credenciales desde ENV en producción, o desde archivo en local
@@ -54,9 +64,12 @@ admin.initializeApp({
   storageBucket: derivedBucket
 });
 
-const db = admin.firestore();
-const bucket = admin.storage().bucket();
+const db = admin.firestore();     // Referencia a la base de datos Firestore
+const bucket = admin.storage().bucket(); // Referencia al bucket de Cloud Storage
 
+// ----- Helpers de Storage -----
+
+// Extrae la ruta del archivo en Storage a partir de la URL pública o firmada
 function resolveStoragePathFromUrl(imageUrl = "") {
   let filePath = imageUrl;
   if (filePath.includes("/o/")) {
@@ -68,6 +81,7 @@ function resolveStoragePathFromUrl(imageUrl = "") {
   return decodeURIComponent(filePath);
 }
 
+// Elimina una imagen de Storage dada su URL; si no existe, solo loguea warning
 async function deleteImageFromUrl(imageUrl = "") {
   if (!imageUrl) return;
   try {
@@ -81,6 +95,7 @@ async function deleteImageFromUrl(imageUrl = "") {
   }
 }
 
+// Elimina un producto de Firestore y su imagen asociada de Storage
 async function deleteProductDocument(docRef, snapshot) {
   const snap = snapshot || await docRef.get();
   if (!snap.exists) {
@@ -97,8 +112,9 @@ async function deleteProductDocument(docRef, snapshot) {
   return data;
 }
 
+// ----- Configuración de Express -----
 const app = express();
-const ADMIN_KEY = process.env.ADMIN_KEY || "CAMBIA-ESTA-CLAVE";
+const ADMIN_KEY = process.env.ADMIN_KEY || "CAMBIA-ESTA-CLAVE"; // Clave de autenticación del panel admin
 // 🔒 CORS restringido a orígenes permitidos
 const ALLOWED_ORIGINS = new Set([
   "http://localhost:3000",
@@ -168,7 +184,8 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB máximo por archivo
 });
 
-// 🚧 Guardia adicional por Origin/Referer para todas las rutas /api
+// Middleware de seguridad: valida Origin/Referer/Host y autenticación admin
+// Las peticiones GET pasan sin clave; POST/DELETE/PATCH requieren x-admin-key
 app.use("/api", (req, res, next) => {
   const origin = req.headers.origin || "";
   const referer = req.headers.referer || "";
@@ -229,7 +246,12 @@ app.get("/healthz/deep", async (_req, res) => {
   }
 });
 
-// 📦 Endpoint para subir producto
+// ----- CRUD de Productos -----
+
+// POST /api/productos — Crear producto con imagen
+// Recibe multipart/form-data con campos: nombre, precio, categoria, imagen (file)
+// Pipeline: validar campos → verificar categoría → optimizar imagen con Sharp →
+//           subir a Storage → guardar documento en Firestore
 app.post("/api/productos", upload.single("imagen"), async (req, res) => {
   try {
     const nombre = String(req.body?.nombre || "").trim();
@@ -309,7 +331,7 @@ app.post("/api/productos", upload.single("imagen"), async (req, res) => {
   }
 });
 
-// 🗑️ Endpoint para eliminar producto
+// DELETE /api/productos/:id — Eliminar producto y su imagen de Storage
 app.delete("/api/productos/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -326,7 +348,9 @@ app.delete("/api/productos/:id", async (req, res) => {
   }
 });
 
-// 📂 Categorías
+// ----- CRUD de Categorías -----
+
+// GET /api/categorias — Listar categorías ordenadas por campo "orden"
 app.get("/api/categorias", async (_req, res) => {
   try {
     const snapshot = await db.collection("categorias").get();
@@ -339,6 +363,7 @@ app.get("/api/categorias", async (_req, res) => {
   }
 });
 
+// POST /api/categorias — Crear nueva categoría (nombre en minúsculas, único)
 app.post("/api/categorias", async (req, res) => {
   try {
     const nombre = String(req.body?.nombre || "").trim().toLowerCase();
@@ -360,6 +385,7 @@ app.post("/api/categorias", async (req, res) => {
   }
 });
 
+// PATCH /api/categorias/:id — Actualizar el orden de una categoría
 app.patch("/api/categorias/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -380,6 +406,9 @@ app.patch("/api/categorias/:id", async (req, res) => {
   }
 });
 
+// DELETE /api/categorias/:id — Eliminar categoría
+// Si tiene productos asociados y no se pasa ?cascade=true, devuelve 409
+// Con cascade=true elimina la categoría junto con todos sus productos e imágenes
 app.delete("/api/categorias/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -431,7 +460,8 @@ app.delete("/api/categorias/:id", async (req, res) => {
   }
 });
 
-// ✏️ Editar nombre, precio y/o categoría de un producto
+// PATCH /api/productos/:id — Editar nombre, precio y/o categoría de un producto
+// Body JSON con los campos a actualizar (al menos uno requerido)
 app.patch("/api/productos/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -468,8 +498,11 @@ app.patch("/api/productos/:id", async (req, res) => {
   }
 });
 
-// 📦 Obtener productos (paginado)
-// Query params: ?limit=N&startAfter=DOC_ID&categoria=NOMBRE
+// GET /api/productos — Obtener productos con paginación por cursor
+// Query params opcionales:
+//   limit      — cantidad por página (1-100, default 50)
+//   startAfter — ID del último documento de la página anterior
+//   categoria  — filtrar por nombre de categoría
 app.get("/api/productos", async (req, res) => {
   try {
     const pageSize = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
@@ -506,6 +539,6 @@ app.get("/api/productos", async (req, res) => {
   }
 });
 
-// Servidor
+// ----- Arranque del servidor -----
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`));

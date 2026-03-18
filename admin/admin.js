@@ -1,27 +1,41 @@
+// =============================================
+// admin.js — Panel de administración
+// Gestión de productos (CRUD + batch upload) y
+// categorías (crear, eliminar, reordenar).
+// Se conecta al backend Express y a Firestore
+// en tiempo real vía onSnapshot.
+// =============================================
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+// Configuración del proyecto Firebase (debe coincidir con server.js)
 const firebaseConfig = {
-  apiKey: "AIzaSyBiFeeGRSwBdW1ok4ttA_QvZj7eFZUf9Ls",
-  authDomain: "galeria-demo-d6eca.firebaseapp.com",
-  projectId: "galeria-demo-d6eca",
-  storageBucket: "galeria-demo-d6eca.firebasestorage.app",
-  messagingSenderId: "416425403132",
-  appId: "1:416425403132:web:813b69dd194a56ee412d79",
-  measurementId: "G-KFLXLQJEEN"
+    apiKey: "AIzaSyBiFeeGRSwBdW1ok4ttA_QvZj7eFZUf9Ls",
+    authDomain: "galeria-demo-d6eca.firebaseapp.com",
+    projectId: "galeria-demo-d6eca",
+    storageBucket: "galeria-demo-d6eca.firebasestorage.app",
+    messagingSenderId: "416425403132",
+    appId: "1:416425403132:web:813b69dd194a56ee412d79",
+    measurementId: "G-KFLXLQJEEN"
 };
 
-// 🌐 URL del servidor: usa el mismo origen en producción (Render) y localhost en desarrollo
+// ----- Detección de entorno y autenticación -----
+
+// URL del servidor: usa localhost en desarrollo, mismo origen en producción
 const host = window.location.hostname;
 const isLocal = host === 'localhost' || host === '127.0.0.1';
 const SERVER_URL = isLocal ? 'http://localhost:3000' : window.location.origin;
-const ADMIN_TOKEN_KEY = 'vg_admin_key';
-let categoriasDisponibles = [];
+const ADMIN_TOKEN_KEY = 'vg_admin_key'; // Clave en localStorage para la sesión admin
+let categoriasDisponibles = []; // Lista de nombres de categorías para los selects
+
+// Genera los headers necesarios para las peticiones autenticadas al backend
 function adminHeaders() {
     const token = localStorage.getItem(ADMIN_TOKEN_KEY) || '';
     const base = { 'Accept': 'application/json' };
     return token ? { ...base, 'x-admin-key': token } : base;
 }
+// Redirige al login si no hay token guardado
 function ensureAuth() {
     const hasToken = !!localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!hasToken && !location.pathname.endsWith('/login.html')) {
@@ -30,7 +44,10 @@ function ensureAuth() {
 }
 ensureAuth();
 
+// ----- Sistema de notificaciones (toasts) -----
 const toastRoot = document.getElementById("toast-root");
+
+// Muestra una notificación temporal en pantalla (tipo: info, success, warning, error)
 function showToast(message, type = "info", { duration = 3500 } = {}) {
     if (!toastRoot) {
         window.alert(message);
@@ -49,11 +66,13 @@ function showToast(message, type = "info", { duration = 3500 } = {}) {
     }, duration);
 }
 
+// ----- Modal de confirmación reutilizable -----
 const confirmModal = document.getElementById("confirm-modal");
 const confirmMessage = document.getElementById("confirm-message");
 const confirmAcceptBtn = confirmModal?.querySelector('[data-confirm="accept"]') || null;
 const confirmCancelBtn = confirmModal?.querySelector('[data-confirm="cancel"]') || null;
 
+// Muestra un diálogo de confirmación; devuelve Promise<boolean>
 function showConfirm(message, { confirmText = "Aceptar", cancelText = "Cancelar" } = {}) {
     if (!confirmModal || !confirmMessage || !confirmAcceptBtn || !confirmCancelBtn) {
         return Promise.resolve(window.confirm(message));
@@ -92,27 +111,31 @@ function showConfirm(message, { confirmText = "Aceptar", cancelText = "Cancelar"
     });
 }
 
+// ----- Inicialización de Firebase -----
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-// Exponer para otros módulos/scripts si hiciera falta
-window.db = db;
+window.db = db; // Exponer para otros módulos/scripts si hiciera falta
 
 if (!firebaseConfig || String(firebaseConfig.apiKey || '').includes('TU_')) {
     console.warn('⚠️ Configuración de Firebase incompleta en admin.html');
 }
 
+// ----- Subida de productos en batch -----
+// El formulario permite seleccionar múltiples imágenes; cada una genera
+// una fila con campos de nombre, precio y categoría antes de enviar.
 const form = document.getElementById("formProducto");
 const inputImagen = document.getElementById("imagen");
-const batchList = document.getElementById("batchList");
+const batchList = document.getElementById("batchList");        // Contenedor de filas batch
 const submitBtn = form?.querySelector('button[type="submit"]');
-const batchFiles = new Map();
-let batchCounter = 0;
+const batchFiles = new Map(); // Map<id, File> — archivos pendientes de subir
+let batchCounter = 0;         // Contador incremental para IDs únicos de filas
+// ----- Selección múltiple de productos para eliminación masiva -----
 const seleccionContador = document.getElementById("seleccionContador");
 const btnSeleccionarTodo = document.getElementById("btnSeleccionarTodo");
 const btnLimpiarSeleccion = document.getElementById("btnLimpiarSeleccion");
 const btnEliminarSeleccion = document.getElementById("btnEliminarSeleccion");
-const selectedProducts = new Set();
-let filtroActual = "todas";
+const selectedProducts = new Set(); // IDs de productos seleccionados
+let filtroActual = "todas";          // Categoría activa en el filtro
 if (batchList) {
     batchList.innerHTML = `<p class="batch-placeholder">Seleccioná una o más imágenes para comenzar.</p>`;
 }
@@ -148,6 +171,7 @@ function renderPlaceholderBatch() {
     batchList.innerHTML = `<p class="batch-placeholder">Seleccioná una o más imágenes para comenzar.</p>`;
 }
 
+// Crea un <select> con las categorías disponibles, opcionalmente con una preseleccionada
 function crearSelectCategorias(selected = "") {
     const select = document.createElement("select");
     select.required = true;
@@ -173,6 +197,7 @@ function crearSelectCategorias(selected = "") {
     return select;
 }
 
+// Sincroniza los selects de categoría en las filas batch cuando cambian las categorías
 function actualizarBatchCategorias() {
     const selects = batchList?.querySelectorAll(".batch-categoria") || [];
     selects.forEach((select) => {
@@ -187,6 +212,7 @@ function actualizarBatchCategorias() {
     });
 }
 
+// Agrega una fila al batch con preview de imagen y campos de nombre/precio/categoría
 function agregarFilaBatch(file, defaultCategoria = "") {
     if (!batchList) return;
     const id = `batch-${batchCounter++}`;
@@ -254,6 +280,8 @@ inputImagen?.addEventListener("change", (e) => {
     files.forEach((file) => agregarFilaBatch(file, defaultCat));
 });
 
+// Sube los productos del batch uno por uno al servidor
+// Devuelve { exitos, fallos, detenido } para mostrar feedback al usuario
 async function subirBatchProductos(items) {
     let exitos = 0;
     let fallos = 0;
@@ -357,9 +385,12 @@ function pluralizarProductos(total) {
     return total === 1 ? "1 producto" : `${total} productos`;
 }
 
-let unsubscribeProductos = null;
-let categoriasLista = [];
+// ----- Lista de productos en tiempo real -----
+let unsubscribeProductos = null; // Función para cancelar el listener activo
+let categoriasLista = [];        // Datos completos de categorías (con id y orden)
 
+// Escucha cambios en la colección "productos" via onSnapshot y renderiza la lista
+// Acepta un filtro opcional por categoría
 function cargarProductos(filtro = filtroActual) {
     filtroActual = filtro;
     selectedProducts.clear();
@@ -442,7 +473,7 @@ function cargarProductos(filtro = filtroActual) {
     );
 }
 
-// --- Eliminar producto ---
+// ----- Eliminar producto individual (delegación de eventos) -----
 document.addEventListener("click", async (e) => {
     if (e.target.classList.contains("eliminar")) {
         const id = e.target.dataset.id;
@@ -465,6 +496,7 @@ document.addEventListener("click", async (e) => {
     }
 });
 
+// Maneja los checkboxes individuales de selección de productos
 document.addEventListener("change", (e) => {
     if (e.target.classList.contains("producto-select")) {
         const id = e.target.value;
@@ -478,6 +510,7 @@ document.addEventListener("change", (e) => {
     }
 });
 
+// Toggle seleccionar/deseleccionar todos los productos visibles
 btnSeleccionarTodo?.addEventListener("click", () => {
     const checkboxes = document.querySelectorAll(".producto-select");
     if (!checkboxes.length) return;
@@ -499,6 +532,7 @@ btnLimpiarSeleccion?.addEventListener("click", () => {
     clearSeleccion();
 });
 
+// Eliminación masiva de los productos seleccionados
 btnEliminarSeleccion?.addEventListener("click", async () => {
     const ids = Array.from(selectedProducts);
     if (!ids.length) return;
@@ -534,24 +568,29 @@ btnEliminarSeleccion?.addEventListener("click", async () => {
     }
 });
 
-// --- CATEGORÍAS DINÁMICAS ---
+// ----- Gestión de categorías -----
 
-const categoriaSelect = document.getElementById("categoria");
-const filtroSelect = document.getElementById("filtroCategoria");
-const listaCategorias = document.getElementById("listaCategorias");
-const formCategoria = document.getElementById("formCategoria");
+const categoriaSelect = document.getElementById("categoria");        // Select del formulario de producto
+const filtroSelect = document.getElementById("filtroCategoria");      // Select para filtrar la lista
+const listaCategorias = document.getElementById("listaCategorias");   // <ul> con las categorías
+const formCategoria = document.getElementById("formCategoria");       // Formulario de nueva categoría
 const inputNuevaCategoria = document.getElementById("nuevaCategoria");
 
+// Obtiene las categorías desde el endpoint GET /api/categorias
 async function fetchCategoriasApi() {
     const res = await fetch(`${SERVER_URL}/api/categorias`);
     if (!res.ok) throw new Error("No se pudo obtener las categorías");
     return res.json();
 }
 
+// ----- Utilidades -----
+
+// Pone en mayúscula la primera letra de un string
 function capitalizar(nombre = "") {
     return nombre.charAt(0).toUpperCase() + nombre.slice(1);
 }
 
+// Escapa caracteres especiales de HTML para prevenir XSS
 function escapeHtml(str = "") {
     return String(str)
         .replace(/&/g, "&amp;")
@@ -561,6 +600,7 @@ function escapeHtml(str = "") {
         .replace(/'/g, "&#39;");
 }
 
+// Carga categorías desde la API y actualiza los selects, el filtro y la lista visual
 async function cargarCategorias() {
     if (!categoriaSelect || !filtroSelect || !listaCategorias) return;
 
@@ -605,6 +645,7 @@ async function cargarCategorias() {
     }
 }
 
+// Crear nueva categoría vía POST /api/categorias
 formCategoria?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const nombre = (inputNuevaCategoria?.value || "").trim().toLowerCase();
@@ -639,6 +680,7 @@ formCategoria?.addEventListener("submit", async (e) => {
     }
 });
 
+// Envía DELETE /api/categorias/:id al servidor; opcionalmente con cascade
 async function eliminarCategoriaRequest(id, { cascade = false } = {}) {
     const param = cascade ? "?cascade=true" : "";
     const res = await fetch(`${SERVER_URL}/api/categorias/${id}${param}`, {
@@ -649,6 +691,7 @@ async function eliminarCategoriaRequest(id, { cascade = false } = {}) {
     return { res, data };
 }
 
+// Delegación de eventos para reordenar (↑↓) y eliminar categorías
 listaCategorias?.addEventListener("click", async (e) => {
     const reordBtn = e.target.closest(".btn-reordenar-cat");
     if (reordBtn) {
@@ -734,6 +777,7 @@ listaCategorias?.addEventListener("click", async (e) => {
     }
 });
 
+// Llama a DELETE /api/productos/:id y maneja respuestas de auth
 async function eliminarProductoApi(id) {
     try {
         const res = await fetch(`${SERVER_URL}/api/productos/${id}`, {
@@ -761,12 +805,13 @@ async function eliminarProductoApi(id) {
     }
 }
 
-// --- Editar producto ---
+// ----- Edición de producto (modal) -----
 const editModal = document.getElementById("edit-modal");
 const editNombreInput = document.getElementById("editNombre");
 const editPrecioInput = document.getElementById("editPrecio");
 const editCategoriaSelect = document.getElementById("editCategoria");
 
+// Muestra el modal de edición con los datos actuales; devuelve Promise con los nuevos valores o null
 function showEditModal({ nombre, precio, categoria }) {
     if (!editModal || !editNombreInput || !editPrecioInput) return Promise.resolve(null);
 
@@ -829,6 +874,7 @@ function showEditModal({ nombre, precio, categoria }) {
     });
 }
 
+// Envía PATCH /api/productos/:id con los campos editados
 async function editarProductoApi(id, nombre, precio, categoria) {
     try {
         const body = { nombre, precio };
@@ -857,6 +903,7 @@ async function editarProductoApi(id, nombre, precio, categoria) {
     }
 }
 
+// Delegación de eventos para el botón "Editar" de cada producto
 document.addEventListener("click", async (e) => {
     const btn = e.target.closest(".editar");
     if (!btn) return;
@@ -879,7 +926,7 @@ document.addEventListener("click", async (e) => {
     }
 });
 
-// --- Cargar todo al iniciar ---
+// ----- Inicialización: carga categorías y productos al abrir el panel -----
 document.addEventListener("DOMContentLoaded", async () => {
     const filtro = document.getElementById("filtroCategoria");
 

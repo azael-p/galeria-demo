@@ -1,9 +1,18 @@
-// --- Conexión con Firebase ---
+// =============================================
+// scripts.js — Storefront (tienda pública)
+// Galería de productos con carruseles por categoría,
+// modal de imagen ampliada con swipe/teclado, y
+// enlaces directos a WhatsApp para consultas.
+// Se conecta a Firestore en tiempo real (onSnapshot).
+// =============================================
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, onSnapshot, query, where, getDocs, limit, startAfter, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { siteContent } from "./content.js";
+import { siteContent } from "./content.js"; // Datos del cliente (nombre, slogan, contacto)
 
-// --- Carruseles: navegación con flechas ---
+// ----- Carruseles: navegación con flechas izq/der -----
+
+// Actualiza el estado habilitado/deshabilitado de las flechas según la posición del scroll
 function updateFlechas(galeria) {
     const carrusel = galeria.closest(".carrusel");
     if (!carrusel) return;
@@ -15,12 +24,14 @@ function updateFlechas(galeria) {
     if (btnDer) btnDer.disabled = atEnd;
 }
 
+// Escucha scroll en las galerías (capture=true para detectar scroll en hijos)
 document.addEventListener("scroll", (e) => {
     if (e.target.classList && e.target.classList.contains("galeria-imagenes")) {
         updateFlechas(e.target);
     }
 }, true);
 
+// Click en flechas del carrusel: desplaza la galería horizontalmente
 document.addEventListener("click", (e) => {
     if (e.target.classList.contains("flecha") && !e.target.disabled) {
         const galeria = e.target.closest(".carrusel").querySelector(".galeria-imagenes");
@@ -33,6 +44,7 @@ document.addEventListener("click", (e) => {
     }
 });
 
+// Configuración del proyecto Firebase (debe coincidir con admin.js y server.js)
 const firebaseConfig = {
     apiKey: "AIzaSyBiFeeGRSwBdW1ok4ttA_QvZj7eFZUf9Ls",
     authDomain: "galeria-demo-d6eca.firebaseapp.com",
@@ -46,6 +58,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// ----- Datos de contacto (extraídos de content.js) -----
 const CONTACT_WHATSAPP = siteContent?.contact?.whatsapp?.international || "59898238313";
 const CONTACT_WHATSAPP_DISPLAY = siteContent?.contact?.whatsapp?.display || "098 238 313";
 const HERO_WHATSAPP_MESSAGE =
@@ -56,11 +69,12 @@ const CONTACT_INSTAGRAM_URL = siteContent?.contact?.instagram?.url || "https://w
 const CONTACT_INSTAGRAM_HANDLE = siteContent?.contact?.instagram?.handle || "@tiendaveniguapa20";
 const HERO_INSTAGRAM_CTA = siteContent?.contact?.instagram?.heroCta || "Hablar por Instagram";
 
+// Íconos SVG inline para WhatsApp e Instagram
 const WA_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
 
 const IG_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>`;
 
-// --- Animación de entrada para tarjetas de producto ---
+// IntersectionObserver para animar tarjetas al entrar en el viewport
 const cardObserver = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -70,6 +84,7 @@ const cardObserver = new IntersectionObserver((entries) => {
     });
 }, { rootMargin: "0px 0px -40px 0px", threshold: 0.1 });
 
+// Formateador de precios en pesos argentinos (ej: $5.000)
 const currencyFormatter = new Intl.NumberFormat("es-AR", {
     style: "currency",
     currency: "ARS",
@@ -77,9 +92,12 @@ const currencyFormatter = new Intl.NumberFormat("es-AR", {
     maximumFractionDigits: 0
 });
 
-let categorias = [];
-let unsubscribeProductos = [];
+let categorias = [];             // Lista de nombres de categorías activas
+let unsubscribeProductos = [];   // Funciones para cancelar listeners de Firestore
 
+// ----- Generación de mensajes y links de WhatsApp -----
+
+// Arma el mensaje de consulta que se envía al WhatsApp de la tienda
 function buildProductMessage(nombre, categoria, precio = "") {
     const tienda = siteContent?.storeName || "la tienda";
     const lineas = [
@@ -103,6 +121,8 @@ function buildGenericWhatsappLink(message) {
     return `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(message)}`;
 }
 
+// ----- Utilidades -----
+
 function capitalizar(texto = "") {
     return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
@@ -116,10 +136,12 @@ function escapeHtml(str = "") {
         .replace(/'/g, "&#39;");
 }
 
+// Convierte nombre de categoría en un ID válido para el DOM (ej: "ropa interior" → "ropa-interior")
 function categoriaId(nombre) {
     return nombre.replace(/\s+/g, "-").toLowerCase();
 }
 
+// Formatea el precio como moneda ARS; devuelve string vacío si no hay precio válido
 function formatPrice(precio) {
     if (precio === undefined || precio === null || precio === "" || precio === 0) return "";
     const numero = Number(String(precio).replace(/[^\d.,-]/g, "").replace(",", "."));
@@ -127,6 +149,7 @@ function formatPrice(precio) {
     return currencyFormatter.format(numero);
 }
 
+// Inyecta el contenido estático de content.js en el HTML (nombre, slogan, links, footer, etc.)
 function applyStaticContent() {
     const navBrand = document.getElementById("navStoreName");
     if (navBrand && siteContent?.storeName) {
@@ -216,6 +239,9 @@ function applyStaticContent() {
     }
 }
 
+// ----- Renderizado de categorías y productos -----
+
+// Crea los chips de categoría y los carruseles vacíos en el DOM
 function renderCategoriasDom(listaCategorias) {
     const seccion = document.getElementById("categorias");
     if (!seccion) return;
@@ -262,6 +288,7 @@ function resetCarruseles() {
     document.querySelectorAll(".carrusel").forEach((c) => c.classList.remove("visible"));
 }
 
+// Obtiene las categorías directamente de Firestore, ordenadas por campo "orden"
 async function obtenerCategorias() {
     try {
         const snapshot = await getDocs(collection(db, "categorias"));
@@ -276,14 +303,16 @@ async function obtenerCategorias() {
     return [];
 }
 
+// Inicializa categorías y luego carga los productos de cada una
 async function inicializarCategorias() {
     categorias = await obtenerCategorias();
     renderCategoriasDom(categorias);
     cargarProductos();
 }
 
-const LIMITE_PRODUCTOS = 12;
+const LIMITE_PRODUCTOS = 12; // Productos por página en cada categoría
 
+// Muestra placeholders skeleton mientras cargan los productos
 function renderSkeletons(galeria, count = 4) {
     galeria.innerHTML = "";
     for (let i = 0; i < count; i++) {
@@ -301,7 +330,7 @@ function renderSkeletons(galeria, count = 4) {
     }
 }
 
-// Renderiza un artículo y lo agrega a la galería
+// Renderiza una tarjeta de producto con imagen, nombre, precio y botón "Consultar"
 function renderItem(galeria, data, categoria, delaySegundos) {
     const precioVisible = formatPrice(data.precio);
     const categoriaLabel = capitalizar(categoria);
@@ -338,7 +367,7 @@ function renderItem(galeria, data, categoria, delaySegundos) {
     }
 }
 
-// Carga productos adicionales al hacer clic en "Ver más"
+// Paginación: carga el siguiente lote de productos al hacer clic en "Ver más"
 async function cargarMasProductos(galeria, inner, categoria, lastDoc) {
     try {
         const q = query(
@@ -378,7 +407,8 @@ function agregarBotonVerMas(inner, galeria, categoria, lastDoc) {
     inner.appendChild(btn);
 }
 
-// --- Cargar productos desde Firebase ---
+// Suscribe listeners onSnapshot por categoría para actualización en tiempo real
+// Cada vez que se llama, cancela los listeners anteriores para evitar fugas
 async function cargarProductos() {
     if (!categorias.length) return;
 
@@ -439,8 +469,9 @@ async function cargarProductos() {
     }
 }
 
+// ----- Inicialización al cargar la página -----
 document.addEventListener("DOMContentLoaded", () => {
-    document.body.classList.add("js-enabled");
+    document.body.classList.add("js-enabled"); // Habilita estilos que dependen de JS
     applyStaticContent();
     inicializarCategorias();
 
@@ -465,7 +496,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// --- Mostrar solo una categoría a la vez con indicador ---
+// ----- Navegación por categorías: muestra/oculta un carrusel a la vez -----
 document.addEventListener("click", (e) => {
     const boton = e.target.closest(".boton-categoria");
     if (!boton) return;
@@ -494,7 +525,8 @@ document.addEventListener("click", (e) => {
     }
 });
 
-// --- Modal de imágenes ampliadas ---
+// ----- Modal de imagen ampliada -----
+// Se crea dinámicamente e incluye flechas, contador, nombre, precio y link a WhatsApp
 const modal = document.createElement("div");
 modal.classList.add("modal");
 modal.setAttribute("role", "dialog");
@@ -523,10 +555,10 @@ const modalCounter = modal.querySelector(".modal-counter");
 const modalName = modal.querySelector(".modal-name");
 const modalPrice = modal.querySelector(".modal-price");
 const modalWhatsapp = modal.querySelector(".modal-cta.whatsapp");
-let imagenes = [];
-let indiceActual = 0;
-let startX = 0;
-let isSwiping = false;
+let imagenes = [];       // Array de <img> de la galería activa
+let indiceActual = 0;    // Índice de la imagen mostrada en el modal
+let startX = 0;          // Posición inicial del touch para detectar swipe
+let isSwiping = false;   // Flag para evitar múltiples swipes simultáneos
 
 function abrirModal() {
     modal.classList.add("abierta");
@@ -536,6 +568,7 @@ function cerrarModal() {
     modal.classList.remove("abierta");
 }
 
+// Click en tarjeta o imagen: abre el modal; click en flechas/cerrar: navega/cierra
 document.addEventListener("click", (e) => {
     let triggerImg = null;
 
@@ -563,12 +596,14 @@ document.addEventListener("click", (e) => {
     }
 });
 
+// Click en el fondo oscuro del modal lo cierra
 modal.addEventListener("click", (e) => {
     if (e.target === modal) {
         cerrarModal();
     }
 });
 
+// ----- Soporte de swipe táctil en el modal -----
 modal.addEventListener("touchstart", (e) => {
     if (e.touches.length !== 1) return;
     startX = e.touches[0].clientX;
@@ -592,6 +627,7 @@ modal.addEventListener("touchend", () => {
     isSwiping = false;
 });
 
+// Actualiza el contador, nombre, precio y link de WhatsApp en el modal
 function actualizarMeta(indice) {
     if (!imagenes[indice]) return;
     const img = imagenes[indice];
@@ -613,6 +649,7 @@ function actualizarMeta(indice) {
     }
 }
 
+// Muestra la imagen en el modal con animación opcional de transición
 function mostrarImagen(indice, direccionAnim = 0) {
     if (!imagenes[indice]) return;
     modalImg.classList.remove("anim-left", "anim-right");
@@ -624,11 +661,13 @@ function mostrarImagen(indice, direccionAnim = 0) {
     actualizarMeta(indice);
 }
 
+// Navega a la imagen anterior (-1) o siguiente (+1) con loop circular
 function cambiarImagen(direccion) {
     indiceActual = (indiceActual + direccion + imagenes.length) % imagenes.length;
     mostrarImagen(indiceActual, direccion);
 }
 
+// Soporte de teclado: Enter/Space abre modal desde tarjeta, flechas navegan, Escape cierra
 document.addEventListener("keydown", (e) => {
     const card = e.target.closest(".item-galeria");
     if (!e.target.closest(".item-cta") && card && (e.key === "Enter" || e.key === " ")) {
