@@ -3,10 +3,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getFirestore, collection, onSnapshot, query, where, getDocs, limit, startAfter, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { siteContent } from "./content.js";
 
-document.addEventListener("DOMContentLoaded", () => {
-    document.body.classList.add("js-enabled");
-});
-
 // --- Carruseles: navegación con flechas ---
 function updateFlechas(galeria) {
     const carrusel = galeria.closest(".carrusel");
@@ -444,30 +440,29 @@ async function cargarProductos() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    document.body.classList.add("js-enabled");
     applyStaticContent();
     inicializarCategorias();
-});
 
-document.addEventListener("DOMContentLoaded", () => {
     const scrollBtn = document.getElementById("scrollTopBtn");
-    if (!scrollBtn) return;
+    if (scrollBtn) {
+        const toggleScrollBtn = () => {
+            if (window.scrollY > 500) {
+                scrollBtn.classList.add("visible");
+            } else {
+                scrollBtn.classList.remove("visible");
+            }
+        };
 
-    const toggleScrollBtn = () => {
-        if (window.scrollY > 500) {
-            scrollBtn.classList.add("visible");
-        } else {
-            scrollBtn.classList.remove("visible");
-        }
-    };
+        window.addEventListener("scroll", toggleScrollBtn, { passive: true });
+        window.addEventListener("resize", toggleScrollBtn);
+        scrollBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        });
 
-    window.addEventListener("scroll", toggleScrollBtn, { passive: true });
-    window.addEventListener("resize", toggleScrollBtn);
-    scrollBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    toggleScrollBtn();
+        toggleScrollBtn();
+    }
 });
 
 // --- Mostrar solo una categoría a la vez con indicador ---

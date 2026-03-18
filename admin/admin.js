@@ -351,12 +351,6 @@ form.addEventListener("submit", async (e) => {
     } else {
         showToast("❌ No se pudieron subir los productos", "error");
     }
-
-    const filtroSelectActual = document.getElementById("filtroCategoria");
-    if (filtroSelectActual) {
-        filtroActual = filtroSelectActual.value || "todas";
-    }
-    cargarProductos(filtroActual);
 });
 
 function pluralizarProductos(total) {
@@ -465,7 +459,6 @@ document.addEventListener("click", async (e) => {
             showToast(resultado.mensaje, "success");
             selectedProducts.delete(id);
             updateSeleccionUI();
-            cargarProductos(filtroActual);
         } else {
             showToast(resultado.mensaje || "⚠️ No se pudo eliminar el producto", "warning");
         }
@@ -531,7 +524,6 @@ btnEliminarSeleccion?.addEventListener("click", async () => {
     }
 
     updateSeleccionUI();
-    cargarProductos(filtroActual);
 
     if (exitos && !fallos) {
         showToast(`✅ ${exitos} producto(s) eliminados`, "success");
