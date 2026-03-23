@@ -690,3 +690,25 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
+
+// Evita que el modal se cierre al hacer clic en los botones de navegación o WhatsApp
+modal.querySelectorAll(".modal-flecha, .modal-cta").forEach((el) => {
+    el.addEventListener("click", (e) => {
+        e.stopPropagation();
+    });
+});
+
+// Preload de la imagen siguiente y anterior para transiciones más suaves
+function preloadImagen(indice) {
+    if (!imagenes[indice]) return;
+    const src = imagenes[indice].src;
+    const img = new Image();
+    img.src = src;
+}
+
+modal.addEventListener("animationend", () => {
+    preloadImagen((indiceActual + 1) % imagenes.length);
+    preloadImagen((indiceActual - 1 + imagenes.length) % imagenes.length);
+}); 
+
+// ----- Fin del código -----
